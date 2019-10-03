@@ -1,0 +1,24 @@
+{
+    "name": "graceas/php-simple-curl-wrapper",
+    "description": "This simple CURL wrapper. Allows the processing of multiple Request's asynchronously.",
+    "keywords": [ "Url Loader", "Curl Wrapper", "Curl", "Request", "Response", "Multi Curl", "Multiple Request" ],
+    "type": "library",
+    "require": {
+        "php": ">=5.6",
+        "curl": ">=7.0",
+        "ext-curl": "*"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Alexander Gorelov",
+            "email": "grac.ga@gmail.com",
+            "homepage": "https://github.com/Graceas",
+            "role": "Developer"
+        }
+    ],
+    "minimum-stability": "stable",
+    "autoload": {
+      "psr-0": { "IcsReader": "src/" }
+    }
+}
