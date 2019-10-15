@@ -6,9 +6,7 @@
  * Time: 16:25
  */
 
-namespace SimpleCurlWrapper\Lib;
-
-use SimpleCurlWrapper\SimpleCurlRequest;
+namespace SimpleCurlWrapper;
 
 /**
  * Class SimpleCurlHelper

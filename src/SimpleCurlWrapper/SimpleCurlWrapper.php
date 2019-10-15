@@ -9,7 +9,6 @@
 namespace SimpleCurlWrapper;
 
 use SimpleCurlWrapper\Exception\SimpleCurlException;
-use SimpleCurlWrapper\Lib\SimpleCurlHelper;
 
 /**
  * Class that holds a rolling queue of curl requests.
