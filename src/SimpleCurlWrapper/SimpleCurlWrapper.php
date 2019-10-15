@@ -289,7 +289,7 @@ class SimpleCurlWrapper
 
         // it's not necessary to set a callback for one-off requests
         if ($request->getCallback() && is_callable($request->getCallback())) {
-            call_user_func($request->getCallback(), array(&$response));
+            call_user_func($request->getCallback(), $response);
         }
 
         return $response;
