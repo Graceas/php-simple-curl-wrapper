@@ -18,6 +18,6 @@
     ],
     "minimum-stability": "stable",
     "autoload": {
-      "psr-0": { "IcsReader": "src/" }
+      "psr-0": { "SimpleCurlWrapper": "src/" }
     }
 }
