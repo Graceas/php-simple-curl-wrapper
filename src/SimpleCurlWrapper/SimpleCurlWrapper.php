@@ -111,26 +111,21 @@ class SimpleCurlWrapper
      *
      * @param int|null $windowSize Window size is the max number of simultaneous connections allowed (if null use default).
      *
-     * @return string|bool
-     *
      * @throws SimpleCurlException
      */
     public function execute($windowSize = null)
     {
-        $result = null;
         // rolling curl window must always be greater than 1
         if (count($this->requests) == 1) {
-            $result = $this->sendSingleRequest($this->requests[0]);
+            $this->sendSingleRequest($this->requests[0]);
         } else {
             // start the rolling curl. windowSize is the max number of simultaneous connections
-            $result = $this->doCurl($windowSize);
+            $this->doCurl($windowSize);
         }
         // clear request
         $this->requests = array();
         $this->lockedRequests = array();
         $this->requestMap = array();
-
-        return $result;
     }
 
     /**
@@ -138,7 +133,7 @@ class SimpleCurlWrapper
      *
      * @param SimpleCurlRequest $request  Request
      *
-     * @return string
+     * @return SimpleCurlResponse
      */
     public function executeRequest(SimpleCurlRequest $request)
     {
@@ -150,7 +145,6 @@ class SimpleCurlWrapper
      *
      * @param int|null $windowSize Window size is the max number of simultaneous connections allowed (if null use default).
      *
-     * @return bool
      * @throws SimpleCurlException
      */
     private function doCurl($windowSize = null)
@@ -259,8 +253,6 @@ class SimpleCurlWrapper
             }
         } while ($running);
         curl_multi_close($master);
-
-        return true;
     }
 
     /**
