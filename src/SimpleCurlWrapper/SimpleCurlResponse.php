@@ -40,6 +40,16 @@ class SimpleCurlResponse
     private $request = null;
 
     /**
+     * @var string
+     */
+    private $bodyPath = '';
+
+    /**
+     * @var boolean
+     */
+    private $bodyLoaded = false;
+
+    /**
      * Response constructor.
      *
      * @param string            $headers Headers response block
@@ -49,8 +59,12 @@ class SimpleCurlResponse
      */
     public function __construct($headers, $body, $info, SimpleCurlRequest $request)
     {
+        $this->bodyPath = sys_get_temp_dir().'/_loader_'.sha1(serialize($request));
+        file_put_contents($this->bodyPath, $body);
+        unset($body);
+
         $this->headers = $headers;
-        $this->body    = $body;
+        $this->body    = '';
         $this->info    = $info;
         $this->request = $request;
     }
@@ -76,7 +90,13 @@ class SimpleCurlResponse
      */
     public function &getBody()
     {
-        return $this->body;
+        if ($this->bodyLoaded) {
+            return $this->body;
+        } else {
+            $this->body = file_get_contents($this->bodyPath);
+
+            return $this->body;
+        }
     }
 
     /**
@@ -89,10 +109,10 @@ class SimpleCurlResponse
         }
 
         if (function_exists('json_decode')) {
-            $this->bodyJson = json_decode($this->body, true);
+            $this->bodyJson = json_decode($this->getBody(), true);
         }
 
-        return $this->bodyJson ;
+        return $this->bodyJson;
     }
 
     /**
@@ -109,5 +129,13 @@ class SimpleCurlResponse
     public function &getRequest()
     {
         return $this->request;
+    }
+
+    /**
+     * Destructor
+     */
+    public function __destruct()
+    {
+        unlink($this->bodyPath);
     }
 }
