@@ -10,7 +10,7 @@ Through composer:
 
     "require": {
         ...
-        "graceas/php-simple-curl-wrapper": "v1.4.3"
+        "graceas/php-simple-curl-wrapper": "v1.4.4"
         ...
     }
 
