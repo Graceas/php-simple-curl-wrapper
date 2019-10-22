@@ -225,7 +225,7 @@ class SimpleCurlWrapper
                 if ($i < sizeof($this->requests) && isset($this->requests[$i]) && $i < count($this->requests)) {
                     $ch = curl_init();
 
-                    $options = SimpleCurlHelper::getOptions($this->requests[$i]);
+                    $options = SimpleCurlHelper::getOptions($this->requests[$i], $this->options, $this->headers);
 
                     curl_setopt_array($ch, $options);
                     curl_multi_add_handle($master, $ch);
