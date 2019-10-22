@@ -216,11 +216,6 @@ class SimpleCurlWrapper
                     call_user_func_array($request->getCallback(), array(&$response));
                 }
 
-                $this->requests[$this->requestMap[$key]] = null;
-                unset($this->requests[$this->requestMap[$key]]);
-                $this->requestMap[$key] = null;
-                unset($this->requestMap[$key], $response, $info);
-
                 // start a new request (it's important to do this before removing the old one)
                 if ($i < sizeof($this->requests) && isset($this->requests[$i]) && $i < count($this->requests)) {
                     $ch = curl_init();
