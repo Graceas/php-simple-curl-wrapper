@@ -25,11 +25,6 @@ class SimpleCurlResponse
     private $body = '';
 
     /**
-     * @var string
-     */
-    private $bodyJson = -1;
-
-    /**
      * @var array
      */
     private $info = array();
