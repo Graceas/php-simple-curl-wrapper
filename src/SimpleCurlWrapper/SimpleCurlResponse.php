@@ -82,7 +82,7 @@ class SimpleCurlResponse
         file_put_contents($this->bodyPath, $body);
         file_put_contents($this->infoPath, serialize($info));
         file_put_contents($this->headersPath, $headers);
-        file_put_contents($this->headersPath, serialize($request));
+        file_put_contents($this->requestPath, serialize($request));
 
         $body    = null;
         $info    = null;
