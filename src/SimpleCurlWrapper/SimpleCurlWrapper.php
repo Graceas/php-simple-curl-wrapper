@@ -123,9 +123,9 @@ class SimpleCurlWrapper
             $this->doCurl($windowSize);
         }
         // clear request
-        $this->requests = array();
+        $this->requests       = array();
         $this->lockedRequests = array();
-        $this->requestMap = array();
+        $this->requestMap     = array();
     }
 
     /**
@@ -178,8 +178,9 @@ class SimpleCurlWrapper
 
             // Add to our request Maps
             $key = (string) $ch;
-            $this->requestMap[$key] = $i;
+            $this->requestMap[$key]   = $i;
             $this->lockedRequests[$i] = true;
+            $options = null;
         }
 
         do {
@@ -210,11 +211,20 @@ class SimpleCurlWrapper
                 $headers = substr($output, 0, $info['header_size']);
                 $body = substr($output, $info['header_size']);
 
+                $info['requested_url'] = $request->getUrl();
                 $response = new SimpleCurlResponse($headers, $body, $info, $request);
 
                 if (is_callable($request->getCallback())) {
                     call_user_func_array($request->getCallback(), array(&$response));
                 }
+
+                $body     = null;
+                $headers  = null;
+                $output   = null;
+                $info     = null;
+                $response = null;
+
+                unset($body, $headers, $output, $info, $response);
 
                 // start a new request (it's important to do this before removing the old one)
                 if ($i < sizeof($this->requests) && isset($this->requests[$i]) && $i < count($this->requests)) {
@@ -230,6 +240,10 @@ class SimpleCurlWrapper
                     $this->requestMap[$key] = $i;
                     $this->lockedRequests[$i] = true;
                     $i++;
+
+                    $options = null;
+                    $request = null;
+                    $key     = null;
 
                     unset($options, $request, $key);
                 }
@@ -248,6 +262,7 @@ class SimpleCurlWrapper
             }
         } while ($running);
         curl_multi_close($master);
+
     }
 
     /**
@@ -278,6 +293,11 @@ class SimpleCurlWrapper
         if ($request->getCallback() && is_callable($request->getCallback())) {
             call_user_func($request->getCallback(), $response);
         }
+
+        $headers = null;
+        $body    = null;
+        $info    = null;
+        $request = null;
 
         return $response;
     }

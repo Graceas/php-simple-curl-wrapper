@@ -35,31 +35,6 @@ class SimpleCurlResponse
     private $request = null;
 
     /**
-     * @var string
-     */
-    private $bodyPath = '';
-
-    /**
-     * @var string
-     */
-    private $infoPath = '';
-
-    /**
-     * @var string
-     */
-    private $headersPath = '';
-
-    /**
-     * @var string
-     */
-    private $requestPath = '';
-
-    /**
-     * @var string
-     */
-    private $tempPath = '';
-
-    /**
      * Response constructor.
      *
      * @param string            $headers Headers response block
@@ -69,39 +44,16 @@ class SimpleCurlResponse
      */
     public function __construct($headers, $body, $info, SimpleCurlRequest $request)
     {
-        $pid = getmypid();
-        $loaderTempDir = sys_get_temp_dir().'/_loader_/';
-        $this->tempPath = $loaderTempDir.$pid.'/';
-        if (!file_exists($loaderTempDir)) {
-            mkdir($loaderTempDir);
-        }
-        if (!file_exists($this->tempPath)) {
-            mkdir($this->tempPath);
-        }
+        $this->headers = $headers;
 
-        $requestSerialized = serialize($request);
-        $requestHash = sha1($requestSerialized.microtime(true).microtime(false).rand(0, 999999));
-        $this->bodyPath = $this->tempPath.'_bod_'.$requestHash;
-        $this->infoPath = $this->tempPath.'_inf_'.$requestHash;
-        $this->headersPath = $this->tempPath.'_hdr_'.$requestHash;
-        $this->requestPath = $this->tempPath.'_req_'.$requestHash;
+        $this->body    = $body;
+        $this->info    = $info;
+        $this->request = $request;
 
-        file_put_contents($this->bodyPath, $body);
-        file_put_contents($this->infoPath, serialize($info));
-        file_put_contents($this->headersPath, $headers);
-        file_put_contents($this->requestPath, $requestSerialized);
-
-        $body    = null;
-        $info    = null;
-        $headers = null;
-        $request = null;
-
-        $this->headers = '';
-        $this->body    = '';
-        $this->info    = array();
-        $this->request = null;
-
-        register_shutdown_function(array($this, '__destruct'));
+        $body          = null;
+        $info          = null;
+        $headers       = null;
+        $request       = null;
     }
 
     /**
@@ -109,9 +61,7 @@ class SimpleCurlResponse
      */
     public function &getHeaders()
     {
-        $headers = file_get_contents($this->headersPath);
-
-        return $headers;
+        return $this->headers;
     }
 
     /**
@@ -127,19 +77,15 @@ class SimpleCurlResponse
      */
     public function &getBody()
     {
-        $body = file_get_contents($this->bodyPath);
-
-        return $body;
+        return $this->body;
     }
 
     /**
      * @return string
      */
-    public function &getBodyAsJson()
+    public function getBodyAsJson()
     {
-        $json = json_decode($this->getBody(), true);
-
-        return $json;
+        return json_decode($this->getBody(), true);
     }
 
     /**
@@ -147,9 +93,7 @@ class SimpleCurlResponse
      */
     public function &getInfo()
     {
-        $info = unserialize(file_get_contents($this->infoPath));
-
-        return $info;
+        return $this->info;
     }
 
     /**
@@ -157,19 +101,7 @@ class SimpleCurlResponse
      */
     public function &getRequest()
     {
-        $request = unserialize(file_get_contents($this->requestPath));
-
-        return $request;
+        return $this->request;
     }
 
-    /**
-     * Destructor
-     */
-    public function __destruct()
-    {
-        @unlink($this->bodyPath);
-        @unlink($this->headersPath);
-        @unlink($this->requestPath);
-        @unlink($this->infoPath);
-    }
 }
