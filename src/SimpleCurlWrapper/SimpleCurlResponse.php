@@ -55,6 +55,11 @@ class SimpleCurlResponse
     private $requestPath = '';
 
     /**
+     * @var string
+     */
+    private $tempPath = '';
+
+    /**
      * Response constructor.
      *
      * @param string            $headers Headers response block
@@ -66,23 +71,25 @@ class SimpleCurlResponse
     {
         $pid = getmypid();
         $loaderTempDir = sys_get_temp_dir().'/_loader_/';
-        $dir = $loaderTempDir.$pid.'/';
+        $this->tempPath = $loaderTempDir.$pid.'/';
         if (!file_exists($loaderTempDir)) {
             mkdir($loaderTempDir);
         }
-        if (!file_exists($dir)) {
-            mkdir($dir);
+        if (!file_exists($this->tempPath)) {
+            mkdir($this->tempPath);
         }
 
-        $this->bodyPath = $dir.'_req_'.sha1(serialize($request));
-        $this->infoPath = $dir.'_inf_'.sha1(serialize($request));
-        $this->headersPath = $dir.'_hdr_'.sha1(serialize($request));
-        $this->requestPath = $dir.'_req_'.sha1(serialize($request));
+        $requestSerialized = serialize($request);
+        $requestHash = sha1($requestSerialized.microtime(true).microtime(false).rand(0, 999999));
+        $this->bodyPath = $this->tempPath.'_req_'.$requestHash;
+        $this->infoPath = $this->tempPath.'_inf_'.$requestHash;
+        $this->headersPath = $this->tempPath.'_hdr_'.$requestHash;
+        $this->requestPath = $this->tempPath.'_req_'.$requestHash;
 
         file_put_contents($this->bodyPath, $body);
         file_put_contents($this->infoPath, serialize($info));
         file_put_contents($this->headersPath, $headers);
-        file_put_contents($this->requestPath, serialize($request));
+        file_put_contents($this->requestPath, $requestSerialized);
 
         $body    = null;
         $info    = null;
