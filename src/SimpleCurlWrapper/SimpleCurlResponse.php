@@ -81,7 +81,7 @@ class SimpleCurlResponse
 
         $requestSerialized = serialize($request);
         $requestHash = sha1($requestSerialized.microtime(true).microtime(false).rand(0, 999999));
-        $this->bodyPath = $this->tempPath.'_req_'.$requestHash;
+        $this->bodyPath = $this->tempPath.'_bod_'.$requestHash;
         $this->infoPath = $this->tempPath.'_inf_'.$requestHash;
         $this->headersPath = $this->tempPath.'_hdr_'.$requestHash;
         $this->requestPath = $this->tempPath.'_req_'.$requestHash;
