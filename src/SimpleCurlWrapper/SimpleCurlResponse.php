@@ -160,9 +160,9 @@ class SimpleCurlResponse
      */
     public function __destruct()
     {
-        unlink($this->bodyPath);
-        unlink($this->headersPath);
-        unlink($this->requestPath);
-        unlink($this->infoPath);
+        @unlink($this->bodyPath);
+        @unlink($this->headersPath);
+        @unlink($this->requestPath);
+        @unlink($this->infoPath);
     }
 }
