@@ -34,7 +34,7 @@ class SimpleCurlWrapper
      *
      * @var float
      */
-    private $timeout = 60;
+    private $timeout = 10;
 
     /**
      * Set your base options that you want to be used with EVERY request.
@@ -74,6 +74,16 @@ class SimpleCurlWrapper
      * @var array SimpleCurlRequest
      */
     private $requestMap = array();
+
+    /**
+     * @var array
+     */
+    private $handlers = array();
+
+    /**
+     * @var resource
+     */
+    private $master;
 
     /**
      * @var bool
@@ -155,114 +165,142 @@ class SimpleCurlWrapper
         }
 
         // make sure the rolling window isn't greater than the # of urls
-        if (sizeof($this->requests) < $this->windowSize) {
-            $this->windowSize = sizeof($this->requests);
+        $requestCount = sizeof($this->requests);
+        if ($requestCount < $this->windowSize) {
+            $this->windowSize = $requestCount;
         }
 
-        if ($this->windowSize < 2) {
-            if ($this->riseErrors) {
-                throw new SimpleCurlException("Window size must be greater than 1");
-            }
-        }
+        // prepare handlers
+        $this->handlers = array();
 
-        $master = curl_multi_init();
-
-        // start the first batch of requests
         for ($i = 0; $i < $this->windowSize; $i++) {
             $ch = curl_init();
-
-            $options = SimpleCurlHelper::getOptions($this->requests[$i], $this->options, $this->headers);
-
-            curl_setopt_array($ch, $options);
-            curl_multi_add_handle($master, $ch);
-
-            // Add to our request Maps
-            $key = (string) $ch;
-            $this->requestMap[$key]   = $i;
-            $this->lockedRequests[$i] = true;
-            $options = null;
+            $this->handlers[$i] = array(
+                'key'     => (string) $ch,
+                'handler' => $ch,
+            );
         }
 
-        do {
-            /** @noinspection PhpStatementHasEmptyBodyInspection */
-            while (($run = curl_multi_exec($master, $running)) == CURLM_CALL_MULTI_PERFORM){};
+        if ($this->windowSize == 0) {
+            return;
+        }
 
-            if ($run != CURLM_OK) {
-                break;
-            }
+        // process requests
+        $batchSize = ceil($requestCount / $this->windowSize);
 
-            // a request was just completed -- find out which one
-            while ($done = curl_multi_info_read($master)) {
-                if ($this->immediatelyStop) {
+        for ($i = 0; $i < $batchSize; $i++) {
+            $handlersMap = array();
+            $this->master   = curl_multi_init();
+
+            // prepare requests
+            for ($j = 0; $j < $this->windowSize; $j++) {
+                curl_setopt($this->handlers[$j]['handler'], CURLOPT_HEADERFUNCTION, null);
+                curl_setopt($this->handlers[$j]['handler'], CURLOPT_READFUNCTION, null);
+                curl_setopt($this->handlers[$j]['handler'], CURLOPT_WRITEFUNCTION, null);
+                curl_setopt($this->handlers[$j]['handler'], CURLOPT_PROGRESSFUNCTION, null);
+                curl_reset($this->handlers[$j]['handler']);
+
+                $key = $i * $this->windowSize + $j;
+                $this->handlers[$j]['request_key'] = $key;
+                $handlersMap[$this->handlers[$j]['key']] = $j;
+
+                if ($key >= $requestCount) {
                     break;
                 }
 
-                // get the info and content returned on the request
-                $info = curl_getinfo($done['handle']);
-                $this->trafficIn  += $info['size_download'];
-                $this->trafficOut += $info['size_upload'];
-                $output = curl_multi_getcontent($done['handle']);
-
-                // send the return values to the callback function.
-                $key = (string) $done['handle'];
-                /** @var SimpleCurlRequest $request */
-                $request = $this->requests[$this->requestMap[$key]];
-
-                $headers = substr($output, 0, $info['header_size']);
-                $body = substr($output, $info['header_size']);
-
-                $info['requested_url'] = $request->getUrl();
-                $response = new SimpleCurlResponse($headers, $body, $info, $request);
-
-                if (is_callable($request->getCallback())) {
-                    call_user_func_array($request->getCallback(), array(&$response));
-                }
-
-                $body     = null;
-                $headers  = null;
-                $output   = null;
-                $info     = null;
-                $response = null;
-
-                unset($body, $headers, $output, $info, $response);
-
-                // start a new request (it's important to do this before removing the old one)
-                if ($i < sizeof($this->requests) && isset($this->requests[$i]) && $i < count($this->requests)) {
-                    $ch = curl_init();
-
-                    $options = SimpleCurlHelper::getOptions($this->requests[$i], $this->options, $this->headers);
-
-                    curl_setopt_array($ch, $options);
-                    curl_multi_add_handle($master, $ch);
-
-                    // Add to our request Maps
-                    $key = (string) $ch;
-                    $this->requestMap[$key] = $i;
-                    $this->lockedRequests[$i] = true;
-                    $i++;
-
-                    $options = null;
-                    $request = null;
-                    $key     = null;
-
-                    unset($options, $request, $key);
-                }
-
-                // remove the curl handle that just completed
-                curl_multi_remove_handle($master, $done['handle']);
-            }
-
-            // Block for data in / output; error handling is done by curl_multi_exec
-            if ($running) {
-                curl_multi_select($master, $this->timeout);
+                $options = SimpleCurlHelper::getOptions($this->requests[$key], $this->options, $this->headers);
+                curl_setopt_array($this->handlers[$j]['handler'], $options);
+                curl_multi_add_handle($this->master, $this->handlers[$j]['handler']);
             }
 
             if ($this->immediatelyStop) {
                 break;
             }
-        } while ($running);
-        curl_multi_close($master);
 
+            // execute requests
+            do {
+                /** @noinspection PhpStatementHasEmptyBodyInspection */
+                while (($run = curl_multi_exec($this->master, $running)) == CURLM_CALL_MULTI_PERFORM);
+
+                if ($run != CURLM_OK) {
+                    break;
+                }
+
+                // a request was just completed -- find out which one
+                while ($done = curl_multi_info_read($this->master)) {
+                    if ($this->immediatelyStop) {
+                        break;
+                    }
+
+                    // get the info and content returned on the request
+                    $info = curl_getinfo($done['handle']);
+                    $this->trafficIn  += $info['size_download'];
+                    $this->trafficOut += $info['request_size'];
+                    $output = curl_multi_getcontent($done['handle']);
+
+                    // send the return values to the callback function.
+                    $key     = (string) $done['handle'];
+                    $handler = $this->handlers[$handlersMap[$key]];
+                    /** @var SimpleCurlRequest $request */
+                    $request = $this->requests[$handler['request_key']];
+
+                    $headers = substr($output, 0, $info['header_size']);
+                    $body    = substr($output, $info['header_size']);
+
+                    $info['requested_url'] = $request->getUrl();
+
+                    if (is_callable($request->getCallback())) {
+                        $callback = $request->getCallback();
+                        $response = new SimpleCurlResponse($headers, $body, $info, $request);
+                        call_user_func_array($callback, array(&$response));
+
+                        $callback = null;
+                        unset($callback);
+                    }
+
+                    $body     = null;
+                    $headers  = null;
+                    $output   = null;
+                    $info     = null;
+                    $request  = null;
+
+                    unset($body, $headers, $output, $info, $request);
+
+                    // remove the curl handle that just completed
+                    curl_multi_remove_handle($this->master, $done['handle']);
+                }
+
+                // Block for data in / output; error handling is done by curl_multi_exec
+                if ($running) {
+                    curl_multi_select($this->master, $this->timeout);
+                }
+
+                if ($this->immediatelyStop) {
+                    break;
+                }
+            } while ($running);
+
+            // clear loaded requests
+            foreach ($this->handlers as $handler) {
+                $this->requests[$handler['request_key']] = null;
+            }
+
+            curl_multi_close($this->master);
+        }
+
+        // close all open handlers
+        foreach ($this->handlers as &$handler) {
+            @curl_close($handler['handler']);
+            $handler = null;
+        }
+
+        $this->handlers = null;
+
+//        curl_multi_close($this->master);
+
+        $this->master = null;
+
+        unset($running, $windowSize);
     }
 
     /**
@@ -294,10 +332,16 @@ class SimpleCurlWrapper
             call_user_func($request->getCallback(), $response);
         }
 
+        curl_close($ch);
+        $ch      = null;
         $headers = null;
         $body    = null;
         $info    = null;
         $request = null;
+        $options = null;
+        $output  = null;
+
+        unset($ch, $headers, $body, $info, $request, $options, $output);
 
         return $response;
     }
@@ -312,6 +356,8 @@ class SimpleCurlWrapper
     public function removeRequest($index)
     {
         if (!isset($this->lockedRequests[$index])) {
+            $this->requests[$index] = null;
+
             unset($this->requests[$index]);
 
             return true;
@@ -325,6 +371,25 @@ class SimpleCurlWrapper
      */
     public function __destruct()
     {
+        if (is_array($this->handlers)) {
+            foreach ($this->handlers as &$handler) {
+                @curl_close($handler);
+                $handler = null;
+            }
+
+            $this->handlers = null;
+        }
+
+        if ($this->master) {
+            @curl_multi_close($this->master);
+
+            $this->master = null;
+        }
+
+        $this->requests       = array();
+        $this->lockedRequests = array();
+        $this->requestMap     = array();
+
         unset($this->windowSize, $this->callback, $this->options, $this->headers, $this->requests, $this->requestMap, $this->lockedRequests);
     }
 

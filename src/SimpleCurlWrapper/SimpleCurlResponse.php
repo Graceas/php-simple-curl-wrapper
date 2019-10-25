@@ -42,10 +42,9 @@ class SimpleCurlResponse
      * @param array             $info    Info
      * @param SimpleCurlRequest $request Initial request
      */
-    public function __construct($headers, $body, $info, SimpleCurlRequest $request)
+    public function __construct(&$headers, &$body, &$info, SimpleCurlRequest &$request)
     {
         $this->headers = $headers;
-
         $this->body    = $body;
         $this->info    = $info;
         $this->request = $request;
@@ -54,6 +53,8 @@ class SimpleCurlResponse
         $info          = null;
         $headers       = null;
         $request       = null;
+
+        unset($body, $info, $headers, $request);
     }
 
     /**
