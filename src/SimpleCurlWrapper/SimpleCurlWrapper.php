@@ -125,29 +125,11 @@ class SimpleCurlWrapper
      */
     public function execute($windowSize = null)
     {
-        // rolling curl window must always be greater than 1
-        if (count($this->requests) == 1) {
-            $this->sendSingleRequest($this->requests[0]);
-        } else {
-            // start the rolling curl. windowSize is the max number of simultaneous connections
-            $this->doCurl($windowSize);
-        }
+        $this->doCurl($windowSize);
         // clear request
         $this->requests       = array();
         $this->lockedRequests = array();
         $this->requestMap     = array();
-    }
-
-    /**
-     * Execute single Request with current curl instance
-     *
-     * @param SimpleCurlRequest $request  Request
-     *
-     * @return SimpleCurlResponse
-     */
-    public function executeRequest(SimpleCurlRequest $request)
-    {
-        return $this->sendSingleRequest($request);
     }
 
     /**
@@ -301,49 +283,6 @@ class SimpleCurlWrapper
         $this->master = null;
 
         unset($running, $windowSize);
-    }
-
-    /**
-     * Performs a single curl request
-     *
-     * @param SimpleCurlRequest $request
-     *
-     * @return SimpleCurlResponse
-     */
-    private function sendSingleRequest(SimpleCurlRequest $request)
-    {
-        $ch = curl_init();
-
-        $options = SimpleCurlHelper::getOptions($request, $this->options, $this->headers);
-
-        curl_setopt_array($ch, $options);
-        $output = curl_exec($ch);
-        $info   = curl_getinfo($ch);
-        $this->trafficIn  += $info['size_download'];
-        $this->trafficOut += $info['size_upload'];
-
-        $headers = substr($output, 0, $info['header_size']);
-        $body    = substr($output, $info['header_size']);
-
-        $response = new SimpleCurlResponse($headers, $body, $info, $request);
-
-        // it's not necessary to set a callback for one-off requests
-        if ($request->getCallback() && is_callable($request->getCallback())) {
-            call_user_func($request->getCallback(), $response);
-        }
-
-        curl_close($ch);
-        $ch      = null;
-        $headers = null;
-        $body    = null;
-        $info    = null;
-        $request = null;
-        $options = null;
-        $output  = null;
-
-        unset($ch, $headers, $body, $info, $request, $options, $output);
-
-        return $response;
     }
 
     /**
