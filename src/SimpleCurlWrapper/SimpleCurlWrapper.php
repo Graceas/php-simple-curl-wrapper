@@ -120,8 +120,6 @@ class SimpleCurlWrapper
      * Execute multiple requests
      *
      * @param int|null $windowSize Window size is the max number of simultaneous connections allowed (if null use default).
-     *
-     * @throws SimpleCurlException
      */
     public function execute($windowSize = null)
     {
@@ -136,8 +134,6 @@ class SimpleCurlWrapper
      * Performs multiple curl requests
      *
      * @param int|null $windowSize Window size is the max number of simultaneous connections allowed (if null use default).
-     *
-     * @throws SimpleCurlException
      */
     private function doCurl($windowSize = null)
     {
@@ -312,7 +308,9 @@ class SimpleCurlWrapper
     {
         if (is_array($this->handlers)) {
             foreach ($this->handlers as &$handler) {
-                @curl_close($handler);
+                if (isset($handler['handler']) && is_resource($handler['handler'])) {
+                    curl_close($handler['handler']);
+                }
                 $handler = null;
             }
 
